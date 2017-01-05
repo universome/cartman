@@ -56,12 +56,19 @@ class Scraper:
             self.context.save()
 
     def _fetch(self):
-        r = self.session.get('https://twitter.com/i/search/timeline', params={
+        params = {
             'f': 'realtime',
             'q': self.ticker.fullname + ' lang:en',
             'src': 'typd',
             'max_position': self.context.max_position
-        })
+        }
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)',
+            'X-Requested-With': "XMLHttpRequest"
+        }
+
+        r = self.session.get('https://twitter.com/i/search/timeline', params=params, headers=headers)
 
         return r.json()
 
