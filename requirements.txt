@@ -1,0 +1,7 @@
+matplotlib>=1.5
+numpy>=1.11
+pandas>=0.19
+peewee>=2.8
+pyquery>=1.2
+requests>=2.12
+scikit-learn>=0.18
