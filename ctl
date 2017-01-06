@@ -6,7 +6,7 @@ import traceback
 
 from peewee import SqliteDatabase
 
-from scrapers import ticker, tweets, quotes
+from scrapers import ticker, tweets, quotes, articles
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(name)-10s %(levelname)-8s %(message)s',
@@ -14,7 +14,8 @@ logging.basicConfig(level=logging.INFO,
 
 SCRAPERS = {
     'tweets': tweets.Scraper,
-    'quotes': quotes.Scraper
+    'quotes': quotes.Scraper,
+    'articles': articles.Scraper
 }
 
 def run_scraper(scraper_name, args):
