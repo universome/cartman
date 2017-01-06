@@ -45,7 +45,7 @@ class Scraper:
     def __init__(self, db, ticker):
         self.db = db
         self.session = Session()
-        self.ticker = ticker
+        self.ticker = Ticker[ticker]
 
         # Statistics.
         self.time_mark = 0
