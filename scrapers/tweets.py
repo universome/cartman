@@ -1,5 +1,6 @@
 import logging
 import time
+import random
 from datetime import datetime
 
 from peewee import *
@@ -22,10 +23,29 @@ class TweetsContext(Model):
     max_position = TextField()
 
 class Scraper:
-    def __init__(self, db, ticker_name):
+    _QUERIES = {
+        Ticker.GOOG:    'google',
+        Ticker.IBM:     'ibm',
+        Ticker.WMT:     'walmart',
+        Ticker.GE:      'general electric',
+        Ticker.MSFT:    'microsoft'
+    }
+
+    _USER_AGENTS = [
+        'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.85 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0'
+        'Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko',
+    ]
+
+    random.shuffle(_USER_AGENTS)
+
+    def __init__(self, db, ticker):
         self.db = db
         self.session = Session()
-        self.ticker = ticker.Ticker[ticker_name]
+        self.ticker = ticker
+        self.request_count = 0
         self.extracted = 0
         self.started = 0
 
@@ -58,15 +78,17 @@ class Scraper:
     def _fetch(self):
         params = {
             'f': 'realtime',
-            'q': self.ticker.fullname + ' lang:en',
+            'q': self._QUERIES[self.ticker] + ' lang:en',
             'src': 'typd',
             'max_position': self.context.max_position
         }
 
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)',
+            'User-Agent': self._USER_AGENTS[self.request_count % len(self._USER_AGENTS)],
             'X-Requested-With': "XMLHttpRequest"
         }
+
+        self.request_count += 1
 
         r = self.session.get('https://twitter.com/i/search/timeline', params=params, headers=headers)
 
@@ -87,10 +109,13 @@ class Scraper:
 
         self.extracted += extracted
         spent = (time.time() - self.started) / 3600
-        speed = int(self.extracted / spent)
 
-        logging.info('Extracted {} (+{}, {}t/h) up to {}'.format(self.extracted, extracted, speed,
-                                                                 datetime.fromtimestamp(oldest)))
+        MESSAGE = 'Extracted {total} (+{last}, {speed}t/h) up to {oldest} in {requests} requests'
+        logging.info(MESSAGE.format(total=self.extracted,
+                                    last=extracted,
+                                    speed=int(self.extracted / spent),
+                                    oldest=datetime.fromtimestamp(oldest),
+                                    requests=self.request_count))
 
     def _extract_tweet(self, html):
         pq = PyQuery(html)
