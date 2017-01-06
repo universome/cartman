@@ -22,17 +22,17 @@ class TweetsContext(Model):
     max_position = TextField()
 
 class Scraper:
-    def __init__(self, db, ticker):
+    def __init__(self, db, ticker_name):
         self.db = db
         self.session = Session()
-        self.ticker = ticker
+        self.ticker = ticker.Ticker[ticker_name]
         self.extracted = 0
         self.started = 0
 
         with Using(db, [Tweet, TweetsContext]):
             db.create_tables([Tweet, TweetsContext], safe=True)
 
-            self.context, _ = TweetsContext.get_or_create(ticker=ticker,
+            self.context, _ = TweetsContext.get_or_create(ticker=self.ticker,
                                                           defaults={'max_position': ''})
 
     def scrape(self):
