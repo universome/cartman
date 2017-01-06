@@ -2,6 +2,7 @@ import logging
 import time
 import random
 from datetime import datetime, timedelta
+from collections import deque
 
 from peewee import *
 from requests import Session
@@ -47,12 +48,13 @@ class Scraper:
         self.ticker = ticker
 
         # Statistics.
-        self.startup = 0
+        self.time_mark = 0
         self.jump_count = 0
         self.request_count = 0
         self.fail_count = 0
         self.extracted_count = 0
         self.accepted_count = 0
+        self.recent_stats = deque()
 
         with Using(db, [Tweet, TweetsContext]):
             db.create_tables([Tweet, TweetsContext], safe=True)
@@ -62,6 +64,7 @@ class Scraper:
 
     def scrape(self):
         self.startup = time.time()
+        self.time_mark = time.time()
 
         if self.context.max_position:
             logging.info('Starting from %s', self.context.max_position)
@@ -150,13 +153,25 @@ class Scraper:
 
         self.extracted_count += extracted
         self.accepted_count += accepted
-        spent = (time.time() - self.startup) / 3600
+        now = time.time()
 
-        logging.info('E: {:6} +{:2} {:5}/h    A: {:6} +{:2} {:5}/h    O: {}    R: {:4}    F: {}'.format(
-            self.extracted_count, extracted, int(self.extracted_count / spent),
-            self.accepted_count, accepted, int(self.accepted_count / spent),
-            datetime.fromtimestamp(oldest), self.request_count, self.fail_count
-        ))
+        while now - self.time_mark >= 60:
+            self.time_mark, _, _ = self.recent_stats.popleft()
+
+        self.recent_stats.append((now, extracted, accepted))
+
+        spent = (now - self.time_mark) / 3600
+        extract_speed = sum(e for _, e, _ in self.recent_stats) / spent
+        accept_speed = sum(a for _, _, a in self.recent_stats) / spent
+
+        logging.info(
+            'E: {:6} +{:2} {:5}/h   A: {:6} +{:2} {:5}/h   O: {}   R: {:4}   F: {}   J: {}'.format(
+                self.extracted_count, extracted, int(extract_speed),
+                self.accepted_count, accepted, int(accept_speed),
+                datetime.fromtimestamp(oldest), self.request_count, self.fail_count, self.jump_count,
+                self.extracted_count / spent
+            )
+        )
 
     def _extract_tweet(self, html):
         pq = PyQuery(html)
