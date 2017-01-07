@@ -29,11 +29,12 @@ class TweetsContext(Model):
 
 class Scraper:
     _QUERIES = {
-        Ticker.GOOG:    'google',
         Ticker.IBM:     'ibm',
         Ticker.WMT:     'walmart',
         Ticker.GE:      'general electric',
-        Ticker.MSFT:    'microsoft'
+        Ticker.MSFT:    'microsoft',
+        Ticker.ADBE:    'adobe',
+        Ticker.YHOO:    'yahoo'
     }
 
     _USER_AGENTS = [
