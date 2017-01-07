@@ -92,20 +92,25 @@ class Scraper:
             if 'items_html' in json and 'min_position' in json:
                 html = json['items_html'].strip()
                 if html:
-                    break
+                    tweet_it = self._extract_tweets(html)
+                    tweets = None
+
+                    try:
+                        tweets = self._process_tweets(tweet_it)
+                    except Exception as ex:
+                        logging.warning('Error while parsing: {}'.format(ex))
+
+                    if tweets is not None:
+                        break
 
             self.fail_count += 1
 
-            if 'items_html' not in json:
-                logging.warning('Empty document for {}, response: {}'.format(ua, json))
-            else:
-                logging.warning('Empty document for %s', ua)
+            logging.warning('Step failed.\nUser-Agent: {}\nResponse: {}'.format(ua, json))
 
             if attempt == max_attempts:
                 logging.error('Jumping failed')
                 return False
 
-        tweets = list(self._extract_tweets(html))
         self.context.max_position = json['min_position']
 
         if tweets:
@@ -136,21 +141,23 @@ class Scraper:
 
         return r.json(), ua
 
-    def _extract_tweets(self, html):
-        pq = PyQuery(html)
+    def _process_tweets(self, tweet_it):
+        tweets = []
+
         oldest = 0
         extracted = 0
         accepted = 0
 
-        for tweet_html in pq('div.js-stream-tweet'):
-            tweet = self._extract_tweet(tweet_html)
-
+        for tweet in tweet_it:
             oldest = min(oldest or tweet['date'], tweet['date'])
             extracted += 1
 
             if self._check_tweet(tweet):
                 accepted += 1
-                yield tweet
+                tweets.append(tweet)
+
+        if extracted == 0:
+            return None
 
         self.extracted_count += extracted
         self.accepted_count += accepted
@@ -173,6 +180,14 @@ class Scraper:
                 self.extracted_count / spent
             )
         )
+
+        return tweets
+
+    def _extract_tweets(self, html):
+        pq = PyQuery(html)
+
+        for tweet_html in pq('div.js-stream-tweet'):
+            yield self._extract_tweet(tweet_html)
 
     def _extract_tweet(self, html):
         pq = PyQuery(html)
