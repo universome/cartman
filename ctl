@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv(path.join(path.dirname(__file__), '.env'))
 
-from scrapers import tweets, quotes, articles
+from scraping import tweets, quotes, articles
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(name)-10s %(levelname)-8s %(message)s',
