@@ -23,10 +23,6 @@ class Tweet(Model):
         primary_key = CompositeKey('ticker', 'id')
         without_rowid = True
 
-class TweetsContext(Model):
-    ticker = TickerField()
-    max_position = TextField()
-
 class Scraper:
     _QUERIES = {
         Ticker.IBM:     'ibm',
@@ -38,43 +34,43 @@ class Scraper:
     }
 
     _USER_AGENTS = [
-        'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.85 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0',
-        'Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko'
+        '',
+        'Mozilla/5.0 (Windows NT 6.1; Win64; x64)'
     ]
 
     random.shuffle(_USER_AGENTS)
 
-    def __init__(self, db, ticker):
+    def __init__(self, db, ticker, until=None):
         self.db = db
         self.session = Session()
         self.ticker = Ticker[ticker]
+        self.query = self._QUERIES[self.ticker]
+        self.max_position = ''
 
         # Statistics.
         self.time_mark = 0
-        self.jump_count = 0
+        self.skip_count = 0
         self.request_count = 0
         self.fail_count = 0
         self.extracted_count = 0
         self.accepted_count = 0
         self.recent_stats = deque()
 
-        with Using(db, [Tweet, TweetsContext]):
-            db.create_tables([Tweet, TweetsContext], safe=True)
+        with Using(db, [Tweet]):
+            db.create_tables([Tweet], safe=True)
 
-            self.context, _ = TweetsContext.get_or_create(ticker=self.ticker,
-                                                          defaults={'max_position': ''})
+            if until:
+                self.until = datetime.strptime(until, '%Y-%m-%d')
+            else:
+                self.until = self._get_oldest_date()
 
     def scrape(self):
         self.startup = time.time()
         self.time_mark = time.time()
 
-        if self.context.max_position:
-            logging.info('Starting from %s', self.context.max_position)
+        logging.info('Starting at %s', self.until)
 
-        with Using(self.db, [Tweet, TweetsContext], False):
+        with Using(self.db, [Tweet], False):
             while self._step():
                 pass
 
@@ -83,21 +79,20 @@ class Scraper:
 
         for attempt in range(max_attempts + 1):
             if attempt == max_attempts:
-                bottom = self._get_oldest_date()
-                logging.info('Jumping to {}...'.format(bottom))
-                self.jump_count += 1
-                json, ua = self._fetch(bottom)
-            else:
-                if attempt > 0:
-                    logging.info('Retrying...')
-                json, ua = self._fetch()
+                self.until -= timedelta(days=1)
+                logging.info('Skipping to {}...'.format(self.until))
+                self.skip_count += 1
+            elif attempt > 0:
+                logging.info('Sleeping and retrying again...')
+                time.sleep(2)
 
+            response, user_agent = self._fetch()
             self.request_count += 1
 
-            if 'items_html' in json and 'min_position' in json:
-                html = json['items_html'].strip()
+            if 'items_html' in response and 'min_position' in response:
+                html = response['items_html'].strip()
 
-                if html and len(json['min_position']) > 16:
+                if html and len(response['min_position']) > 16:
                     tweet_it = self._extract_tweets(html)
                     tweets = None
 
@@ -111,29 +106,28 @@ class Scraper:
 
             self.fail_count += 1
 
-            logging.warning('Step failed.\nUser-Agent: {}\nResponse: {}'.format(ua, json))
+            logging.warning('Step failed.\nUser-Agent: {}\nResponse: {}'.format(user_agent, response))
 
             if attempt == max_attempts:
-                logging.error('Jumping failed')
+                logging.error('Exhausted attempts!')
                 return False
 
-        self.context.max_position = json['min_position']
+        self.max_position = response['min_position']
 
         if tweets:
             with self.db.atomic():
                 Tweet.insert_many(tweets).on_conflict('IGNORE').execute()
-                self.context.save()
 
         return True
 
-    def _fetch(self, until=None):
-        until = ' until:' + until.strftime('%Y-%m-%d') if until else ''
+    def _fetch(self):
+        until = (self.until + timedelta(days=1)).strftime('%Y-%m-%d')
 
         params = {
             'f': 'realtime',
-            'q': self._QUERIES[self.ticker] + ' lang:en' + until,
+            'q': self.query + ' lang:en until:' + until,
             'src': 'typd',
-            'max_position': self.context.max_position if not until else ''
+            'max_position': self.max_position
         }
 
         ua = self._USER_AGENTS[self.request_count % len(self._USER_AGENTS)]
@@ -143,7 +137,7 @@ class Scraper:
             'X-Requested-With': "XMLHttpRequest"
         }
 
-        r = self.session.get('https://twitter.com/i/search/timeline', params=params, headers=headers)
+        r = self.session.get('http://twitter.com/i/search/timeline', params=params, headers=headers)
 
         return r.json(), ua
 
@@ -182,10 +176,12 @@ class Scraper:
             'E: {:6} +{:2} {:5}/h   A: {:6} +{:2} {:5}/h   O: {}   R: {:4}   F: {}   J: {}'.format(
                 self.extracted_count, extracted, int(extract_speed),
                 self.accepted_count, accepted, int(accept_speed),
-                datetime.fromtimestamp(oldest), self.request_count, self.fail_count, self.jump_count,
+                datetime.fromtimestamp(oldest), self.request_count, self.fail_count, self.skip_count,
                 self.extracted_count / spent
             )
         )
+
+        self.until = datetime.utcfromtimestamp(oldest)
 
         return tweets
 
@@ -214,10 +210,13 @@ class Scraper:
         return tweet['retweet_count'] > 0 or tweet['favorite_count'] > 0
 
     def _get_oldest_date(self):
-        oldest = (Tweet
-            .select()
-            .where(Tweet.ticker == self.ticker)
-            .order_by(Tweet.date)
-            .get())
+        try:
+            oldest = (Tweet
+                .select()
+                .where(Tweet.ticker == self.ticker)
+                .order_by(Tweet.date)
+                .get())
 
-        return oldest.date
+            return oldest.date
+        except DoesNotExist:
+            return datetime.utcnow()
