@@ -98,7 +98,7 @@ class Scraper:
                     try:
                         tweets = self._process_tweets(tweet_it)
                     except Exception as ex:
-                        logging.warning('Error while parsing: {}'.format(ex))
+                        logging.exception('Error while parsing: {}'.format(ex))
 
                     if tweets is not None:
                         break
@@ -193,7 +193,7 @@ class Scraper:
     def _extract_tweets(self, html):
         pq = PyQuery(html)
 
-        for tweet_html in pq('div.js-stream-tweet'):
+        for tweet_html in pq('div.js-stream-tweet').not_('.withheld-tweet'):
             yield self._extract_tweet(tweet_html)
 
     def _extract_tweet(self, html):
