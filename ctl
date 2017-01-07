@@ -6,7 +6,7 @@ import traceback
 
 from playhouse.sqlite_ext import SqliteExtDatabase
 
-from scrapers import ticker, tweets, quotes, articles
+from scrapers import tweets, quotes, articles
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(name)-10s %(levelname)-8s %(message)s',

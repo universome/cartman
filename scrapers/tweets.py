@@ -9,10 +9,8 @@ from peewee import *
 from requests import Session
 from pyquery import PyQuery
 
-from .ticker import Ticker, TickerField
-
 class Tweet(Model):
-    ticker = TickerField()
+    ticker = CharField()
     id = IntegerField()
     date = TimestampField(utc=True, index=True)
     user_id = IntegerField()
@@ -26,12 +24,12 @@ class Tweet(Model):
 
 class Scraper:
     _QUERIES = {
-        Ticker.IBM:     'ibm',
-        Ticker.WMT:     'walmart',
-        Ticker.GE:      'general electric',
-        Ticker.MSFT:    'microsoft',
-        Ticker.ADBE:    'adobe',
-        Ticker.YHOO:    'yahoo'
+        'IBM':  'ibm',
+        'WMT':  'walmart',
+        'GE':   'general electric',
+        'MSFT': 'microsoft',
+        'ADBE': 'adobe',
+        'YHOO': 'yahoo'
     }
 
     _USER_AGENTS = [
@@ -44,8 +42,8 @@ class Scraper:
     def __init__(self, db, ticker, until=None):
         self.db = db
         self.session = Session()
-        self.ticker = Ticker[ticker]
-        self.query = self._QUERIES[self.ticker]
+        self.ticker = ticker
+        self.query = self._QUERIES[ticker]
         self.max_position = ''
 
         # Statistics.
