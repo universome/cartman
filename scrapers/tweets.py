@@ -1,7 +1,7 @@
 import logging
 import time
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import deque
 
 from peewee import *
@@ -121,11 +121,11 @@ class Scraper:
         return True
 
     def _fetch(self):
-        until = (self.until + timedelta(days=1)).strftime('%Y-%m-%d')
+        until = (self.until + timedelta(days=1)).replace(tzinfo=timezone.utc).astimezone(tz=None)
 
         params = {
             'f': 'realtime',
-            'q': self.query + ' lang:en until:' + until,
+            'q': self.query + ' lang:en until:' + until.strftime('%Y-%m-%d'),
             'src': 'typd',
             'max_position': self.max_position
         }
