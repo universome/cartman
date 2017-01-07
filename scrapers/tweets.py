@@ -95,7 +95,8 @@ class Scraper:
 
             if 'items_html' in json and 'min_position' in json:
                 html = json['items_html'].strip()
-                if html:
+
+                if html and len(json['min_position']) > 16:
                     tweet_it = self._extract_tweets(html)
                     tweets = None
 
