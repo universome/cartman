@@ -1,3 +1,4 @@
+import re
 import logging
 import time
 import random
@@ -106,7 +107,13 @@ class Scraper:
 
             self.fail_count += 1
 
-            logging.warning('Step failed.\nUser-Agent: {}\nResponse: {}'.format(user_agent, response))
+            response = str(response)
+            if len(response) > 1000:
+                response = response[:1000] + ' [..]'
+
+            logging.warning('Step failed')
+            logging.warning('  User-Agent: {}'.format(user_agent))
+            logging.warning('  Response: {}'.format(response))
 
             if attempt == max_attempts:
                 logging.error('Exhausted attempts!')
@@ -193,13 +200,26 @@ class Scraper:
 
     def _extract_tweet(self, html):
         pq = PyQuery(html)
+        text = pq('p.js-tweet-text')
+
+        for a in text('a'):
+            a = PyQuery(a)
+
+            if a.has_class('twitter-hashtag'):
+                a.replace_with(' ' + a.text().replace('# ', '#') + ' ')
+            elif a.has_class('twitter-atreply'):
+                a.replace_with(' @' + a.attr('data-mentioned-user-id') + ' ')
+            elif a.has_class('twitter-cashtag'):
+                a.replace_with(' ' + a.text().replace('$ ', '$') + ' ')
+            else:
+                a.replace_with(' [link] ')
 
         return {
             'ticker': self.ticker,
             'id': pq.attr('data-tweet-id'),
             'date': int(pq('small.time span.js-short-timestamp').attr('data-time')),
             'user_id': int(pq('a.js-user-profile-link').attr('data-user-id')),
-            'text': pq('p.js-tweet-text').text().replace('# ', '#').replace('@ ', '@'),
+            'text': re.sub(r'\s+', ' ', text.text().strip()),
             'retweet_count': int(pq('span.ProfileTweet-action--retweet span.ProfileTweet-actionCount')
                                  .attr('data-tweet-stat-count').replace(',', '')),
             'favorite_count': int(pq('span.ProfileTweet-action--favorite span.ProfileTweet-actionCount')
