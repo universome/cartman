@@ -78,9 +78,10 @@ class Scraper:
 
         for attempt in range(max_attempts + 1):
             if attempt == max_attempts:
-                logging.info('Jumping...')
+                bottom = self._get_oldest_date()
+                logging.info('Jumping to {}...'.format(bottom))
                 self.jump_count += 1
-                json, ua = self._fetch(self._get_bottom_date())
+                json, ua = self._fetch(bottom)
             else:
                 if attempt > 0:
                     logging.info('Retrying...')
@@ -191,7 +192,7 @@ class Scraper:
     def _check_tweet(self, tweet):
         return tweet['retweet_count'] > 0 or tweet['favorite_count'] > 0
 
-    def _get_bottom_date(self):
+    def _get_oldest_date(self):
         oldest = (Tweet
             .select()
             .where(Tweet.ticker == self.ticker)
