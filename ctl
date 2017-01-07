@@ -4,7 +4,7 @@ import sys
 import logging
 import traceback
 
-from peewee import SqliteDatabase
+from playhouse.sqlite_ext import SqliteExtDatabase
 
 from scrapers import ticker, tweets, quotes, articles
 
@@ -19,7 +19,7 @@ SCRAPERS = {
 }
 
 def run_scraper(scraper_name, args):
-    db = SqliteDatabase('cartman.db')
+    db = SqliteExtDatabase('cartman.db')
 
     db.connect()
     scraper = SCRAPERS[scraper_name](db, *args)

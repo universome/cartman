@@ -19,6 +19,10 @@ class Tweet(Model):
     retweet_count = IntegerField()
     favorite_count = IntegerField()
 
+    class Meta:
+        primary_key = CompositeKey('ticker', 'id')
+        without_rowid = True
+
 class TweetsContext(Model):
     ticker = TickerField()
     max_position = TextField()
@@ -115,7 +119,7 @@ class Scraper:
 
         if tweets:
             with self.db.atomic():
-                count = Tweet.insert_many(tweets).execute()
+                Tweet.insert_many(tweets).on_conflict('IGNORE').execute()
                 self.context.save()
 
         return True
