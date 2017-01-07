@@ -1,6 +1,7 @@
 import json
 import time
 import logging
+import os
 from os import path
 from datetime import datetime
 from itertools import islice, chain
@@ -24,7 +25,7 @@ class Article(Model):
     has_multimedia = BooleanField()
 
 class Scraper:
-    _API_KEY = 'c575b69ae4e2408ab908c6f1711cf9a0'
+    _API_KEY = os.environ['NY_API_KEY']
     _URL = 'https://api.nytimes.com/svc/archive/v1/{year}/{month}.json?api-key=' + _API_KEY
     _START_YEAR = 2011
     _FINISH_YEAR = 2017

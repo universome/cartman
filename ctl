@@ -3,8 +3,13 @@
 import sys
 import logging
 import traceback
+import os
+from os import path
 
 from playhouse.sqlite_ext import SqliteExtDatabase
+from dotenv import load_dotenv
+
+load_dotenv(path.join(path.dirname(__file__), '.env'))
 
 from scrapers import tweets, quotes, articles
 
@@ -19,7 +24,8 @@ SCRAPERS = {
 }
 
 def run_scraper(scraper_name, args):
-    db = SqliteExtDatabase('cartman.db')
+    db_path = path.join(path.dirname(__file__), os.environ['RAW_DB'])
+    db = SqliteExtDatabase(db_path)
 
     db.connect()
     scraper = SCRAPERS[scraper_name](db, *args)
