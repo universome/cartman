@@ -3,7 +3,6 @@ from itertools import islice
 
 from requests import Session
 
-# TODO: send appid.
 def sentiment140(it, subject='', chunk_size=10000):
     it = iter(it)
     session = Session()

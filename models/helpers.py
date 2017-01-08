@@ -1,4 +1,9 @@
 import sys
-import os
+from os import path
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, '../..')))
+from dotenv import load_dotenv
+
+ROOT = path.abspath(path.join(__file__, '../..'))
+
+sys.path[0] = ROOT
+load_dotenv(path.join(ROOT, '.env'))
