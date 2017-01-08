@@ -3,10 +3,15 @@
 import sys
 import logging
 import traceback
+import os
+from os import path
 
-from peewee import SqliteDatabase
+from playhouse.sqlite_ext import SqliteExtDatabase
+from dotenv import load_dotenv
 
-from scrapers import ticker, tweets, quotes, articles
+load_dotenv(path.join(path.dirname(__file__), '.env'))
+
+from scraping import tweets, quotes, articles
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(name)-10s %(levelname)-8s %(message)s',
@@ -19,7 +24,8 @@ SCRAPERS = {
 }
 
 def run_scraper(scraper_name, args):
-    db = SqliteDatabase('cartman.db')
+    db_path = path.join(path.dirname(__file__), os.environ['RAW_DB'])
+    db = SqliteExtDatabase(db_path)
 
     db.connect()
     scraper = SCRAPERS[scraper_name](db, *args)

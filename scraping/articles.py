@@ -1,6 +1,7 @@
 import json
 import time
 import logging
+import os
 from os import path
 from datetime import datetime
 from itertools import islice, chain
@@ -9,25 +10,8 @@ import requests
 from peewee import *
 from pyquery import PyQuery as pq
 
-from .ticker import Ticker, TickerField
-
-API_KEY = 'c575b69ae4e2408ab908c6f1711cf9a0'
-URL = 'https://api.nytimes.com/svc/archive/v1/{year}/{month}.json?api-key=' + API_KEY
-START_YEAR = 2011
-FINISH_YEAR = 2017
-FINISH_MONTH = 2
-
-COMPANIES_TO_TICKERS = {
-    'Google': 'GOOG',
-    'International Business Machines': 'IBM',
-    'IBM': 'IBM',
-    'Walmart': 'WMT',
-    'General Electric': 'GE',
-    'Microsoft': 'MSFT'
-}
-
 class Article(Model):
-    ticker = TickerField()
+    ticker = CharField()
     date = TimestampField(utc=True, index=True)
     title = TextField()
     seo_title = TextField(null=True)
@@ -41,6 +25,21 @@ class Article(Model):
     has_multimedia = BooleanField()
 
 class Scraper:
+    _API_KEY = os.environ['NY_API_KEY']
+    _URL = 'https://api.nytimes.com/svc/archive/v1/{year}/{month}.json?api-key=' + _API_KEY
+    _START_YEAR = 2011
+    _FINISH_YEAR = 2017
+    _FINISH_MONTH = 2
+
+    _COMPANIES_TO_TICKERS = {
+        'Google': 'GOOG',
+        'International Business Machines': 'IBM',
+        'IBM': 'IBM',
+        'Walmart': 'WMT',
+        'General Electric': 'GE',
+        'Microsoft': 'MSFT'
+    }
+
     def __init__(self, db):
         self.db = db
 
@@ -66,14 +65,14 @@ class Scraper:
         count = 0
         for article in chain.from_iterable(self._extract_archives()):
             for keyword in article['keywords']:
-                for company in COMPANIES_TO_TICKERS:
+                for company, ticker in self._COMPANIES_TO_TICKERS.items():
                     if not company in keyword['value']: continue
 
                     # Sometimes we have date in an other format :|
                     date_str = article['pub_date'].replace('Z', '+0000')
 
                     yield {
-                        'ticker': Ticker[COMPANIES_TO_TICKERS[company]],
+                        'ticker': ticker,
                         'date': time.mktime(datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S+%f').timetuple()),
                         'title': article['headline']['main'],
                         'seo_title': article['seo_headline'] if 'seo_headline' in article else None,
@@ -90,15 +89,15 @@ class Scraper:
             if count % 10000 == 0: logging.info('Processed {} articles'.format(count))
 
     def _extract_archives(self):
-        params = {'year': START_YEAR, 'month': 1}
+        params = {'year': self._START_YEAR, 'month': 1}
 
-        while params['year'] < FINISH_YEAR or params['month'] < FINISH_MONTH:
+        while params['year'] < self._FINISH_YEAR or params['month'] < self._FINISH_MONTH:
             archive = self._extract_archive(params)
 
             if 'docs' in archive:
                 yield archive['docs']
             else:
-                logging.error('Could not extract archive {month}.{year}'.format(**params))
+                logging.error('Could not extract archive {month:02}/{year}'.format(**params))
 
             if params['month'] < 12:
                 params['month'] += 1
@@ -107,31 +106,16 @@ class Scraper:
                 params['month'] = 1
 
     def _extract_archive(self, params):
-        logging.info('Extracting archive {month}.{year}'.format(**params))
+        logging.info('Extracting archive {month:02}/{year}'.format(**params))
 
-        name = 'articles/articles_{month}-{year}.json'.format(**params)
+        response = requests.get(self._URL.format(**params))
 
-        if path.exists(name):
-            with open(name, 'r') as file:
-                archive = json.load(file)
-        else:
-            response = requests.get(URL.format(**params))
+        logging.info('Loading archive: {}'.format(response.url))
 
-            logging.info('Loading archive: {}'.format(response.url))
-
-            try:
-                archive = response.json()['response']
-            except ValueError as e:
-                logging.error('Error occured when decoding response: {}'.format(response.text))
-                archive = []
+        try:
+            archive = response.json()['response']
+        except ValueError:
+            logging.error('Error occured when decoding response: {}'.format(response.text))
+            archive = []
 
         return archive
-
-    # def _load_full_content(self):
-    #     article_url = 'http://www.nytimes.com/2017/01/04/science/hurricanes-us.html'
-    #     HEADERS = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36'}
-
-    #     page = pq(url=article_url, opener=lambda url: requests.get(url, headers=headers).text)
-
-    #     return page('#story .story-body').text()
-
