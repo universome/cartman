@@ -152,7 +152,7 @@ class Scraper:
         self.extracted_count += extracted
         now = time.time()
 
-        while now - self.time_mark >= 60:
+        while self.recent_stats and now - self.time_mark >= 60:
             self.time_mark, _ = self.recent_stats.popleft()
 
         self.recent_stats.append((now, extracted))
