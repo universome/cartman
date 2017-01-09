@@ -23,15 +23,6 @@ class Tweet(Model):
         without_rowid = True
 
 class Scraper:
-    _QUERIES = {
-        'IBM':  'ibm',
-        'WMT':  'walmart',
-        'GE':   'general electric',
-        'MSFT': 'microsoft',
-        'ADBE': 'adobe',
-        'YHOO': 'yahoo'
-    }
-
     _USER_AGENTS = [
         '',
         'Mozilla/5.0 (Windows NT 6.1; Win64; x64)'
@@ -43,7 +34,6 @@ class Scraper:
         self.db = db
         self.session = Session()
         self.ticker = ticker
-        self.query = self._QUERIES[ticker]
         self.max_position = ''
 
         # Statistics.
@@ -52,7 +42,6 @@ class Scraper:
         self.request_count = 0
         self.fail_count = 0
         self.extracted_count = 0
-        self.accepted_count = 0
         self.recent_stats = deque()
 
         with Using(db, [Tweet]):
@@ -130,7 +119,7 @@ class Scraper:
 
         params = {
             'f': 'realtime',
-            'q': self.query + ' lang:en until:' + until.strftime('%Y-%m-%d'),
+            'q': '${} lang:en until:{}'.format(self.ticker, until.strftime('%Y-%m-%d')),
             'src': 'typd',
             'max_position': self.max_position
         }
@@ -151,36 +140,29 @@ class Scraper:
 
         oldest = 0
         extracted = 0
-        accepted = 0
 
         for tweet in tweet_it:
             oldest = min(oldest or tweet['date'], tweet['date'])
             extracted += 1
-
-            if self._check_tweet(tweet):
-                accepted += 1
-                tweets.append(tweet)
+            tweets.append(tweet)
 
         if extracted == 0:
             return None
 
         self.extracted_count += extracted
-        self.accepted_count += accepted
         now = time.time()
 
         while now - self.time_mark >= 60:
-            self.time_mark, _, _ = self.recent_stats.popleft()
+            self.time_mark, _ = self.recent_stats.popleft()
 
-        self.recent_stats.append((now, extracted, accepted))
+        self.recent_stats.append((now, extracted))
 
         spent = (now - self.time_mark) / 3600
-        extract_speed = sum(e for _, e, _ in self.recent_stats) / spent
-        accept_speed = sum(a for _, _, a in self.recent_stats) / spent
+        extract_speed = sum(e for _, e in self.recent_stats) / spent
 
         logging.info(
-            'E: {:6} +{:2} {:5}/h   A: {:6} +{:2} {:5}/h   O: {}   R: {:4}   F: {}   J: {}'.format(
+            'E: {:6} +{:2} {:5}/h    O: {}    R: {:4}    F: {}    J: {}'.format(
                 self.extracted_count, extracted, int(extract_speed),
-                self.accepted_count, accepted, int(accept_speed),
                 datetime.fromtimestamp(oldest), self.request_count, self.fail_count, self.skip_count,
                 self.extracted_count / spent
             )
@@ -223,9 +205,6 @@ class Scraper:
             'favorite_count': int(pq('span.ProfileTweet-action--favorite span.ProfileTweet-actionCount')
                                   .attr('data-tweet-stat-count').replace(',', ''))
         }
-
-    def _check_tweet(self, tweet):
-        return tweet['retweet_count'] > 0 or tweet['favorite_count'] > 0
 
     def _get_oldest_date(self):
         try:
