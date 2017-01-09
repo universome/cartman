@@ -169,12 +169,13 @@ class Scraper:
         logging.info(
             'E: {:6} +{:2} {:5}/h    O: {}    R: {:4}    F: {}    J: {}'.format(
                 self.extracted_count, extracted, int(extract_speed),
-                datetime.fromtimestamp(oldest), self.request_count, self.fail_count, self.skip_count,
+                datetime.utcfromtimestamp(oldest),
+                self.request_count, self.fail_count, self.skip_count,
                 self.extracted_count / spent
             )
         )
 
-        self.until = datetime.utcfromtimestamp(oldest)
+        self.until = min(self.until, datetime.utcfromtimestamp(oldest))
 
         return tweets
 
