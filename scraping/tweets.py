@@ -63,7 +63,7 @@ class Scraper:
                 pass
 
     def _step(self):
-        max_attempts = len(self._USER_AGENTS)
+        max_attempts = max(len(self._USER_AGENTS), 4)
 
         for attempt in range(max_attempts + 1):
             if attempt == max_attempts:
@@ -74,10 +74,16 @@ class Scraper:
                 logging.info('Sleeping and retrying again...')
                 time.sleep(2)
 
-            response, user_agent = self._fetch()
+            response, user_agent = None, None
+
+            try:
+                response, user_agent = self._fetch()
+            except Exception as ex:
+                logging.exception('Error while fetching: {}'.format(ex))
+
             self.request_count += 1
 
-            if 'items_html' in response and 'min_position' in response:
+            if response and 'items_html' in response and 'min_position' in response:
                 html = response['items_html'].strip()
 
                 if html and len(response['min_position']) > 16:
