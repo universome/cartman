@@ -13,7 +13,7 @@ class News(Model):
     source = TextField(null=True)
     title = TextField()
     description = TextField(null=True)
-    url = TextField()
+    url = TextField(null=True)
     engagement = IntegerField(null=True)
     marked = BooleanField()
 
@@ -77,7 +77,12 @@ class Scraper:
         url = item.get('canonicalUrl')
         if not url:
             match = re.search(r'(https?(:|%3A)//.+?)(\?|#|$)', alt_href[7:])
-            url = match.group(1) if match.group(2) == ':' else urllib.parse.unquote(match.group(1))
+
+            # Broken url.
+            if not match and 'finance/news/rss/story/*&' in alt_href:
+                url = None
+            else:
+                url = match.group(1) if match.group(2) == ':' else urllib.parse.unquote(match.group(1))
 
         return {
             'ticker': self.ticker,
