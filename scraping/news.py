@@ -39,7 +39,9 @@ class Scraper:
     def _step(self):
         response = self._fetch()
 
-        news = [self._extract_news(item) for item in response['items']]
+        news = (self._extract_news(item) for item in response['items'])
+        news = list(filter(None, news))
+
         self.continuation = response.get('continuation')
 
         self.extracted += len(news)
@@ -63,6 +65,10 @@ class Scraper:
         return r.json()
 
     def _extract_news(self, item):
+        # Broken news.
+        if 'alternate' not in item and 'RSS feed not found' in item['title']:
+            return None
+
         alt_href = item['alternate'][0]['href']
         summary = item['summary']['content'].strip() if 'summary' in item else None
 
