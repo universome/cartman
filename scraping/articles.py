@@ -11,7 +11,7 @@ from peewee import *
 from pyquery import PyQuery as pq
 
 class Article(Model):
-    ticker = CharField()
+    ticker = CharField(5)
     date = TimestampField(utc=True, index=True)
     title = TextField()
     seo_title = TextField(null=True)

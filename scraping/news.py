@@ -6,7 +6,7 @@ import requests
 from peewee import *
 
 class News(Model):
-    ticker = TextField()
+    ticker = CharField(5)
     id = IntegerField()
     date = TimestampField(utc=True, index=True)
     source = TextField(null=True)

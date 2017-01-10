@@ -9,13 +9,13 @@ import requests
 from peewee import *
 
 class Quote(Model):
-    ticker = CharField()
+    ticker = CharField(5)
     date = TimestampField(utc=True)
-    open_price = DecimalField()
-    low_price = DecimalField()
-    high_price = DecimalField()
-    close_price = DecimalField()
-    volume = DecimalField()
+    open_price = DecimalField(6, 2)
+    low_price = DecimalField(6, 2)
+    high_price = DecimalField(6, 2)
+    close_price = DecimalField(6, 2)
+    volume = DecimalField(6, 2)
 
     class Meta:
         primary_key = CompositeKey('ticker', 'date')
