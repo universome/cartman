@@ -10,7 +10,7 @@ from peewee import *
 
 class Quote(Model):
     ticker = CharField()
-    date = TimestampField(utc=True, index=True)
+    date = TimestampField(utc=True)
     open_price = DecimalField()
     low_price = DecimalField()
     high_price = DecimalField()
