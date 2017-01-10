@@ -1,6 +1,7 @@
 import re
 import logging
 from datetime import datetime
+import urllib
 
 import requests
 from peewee import *
@@ -75,7 +76,8 @@ class Scraper:
 
         url = item.get('canonicalUrl')
         if not url:
-            url = re.search(r'(https?://.+?)(\?|$)', alt_href[7:]).group(1)
+            match = re.search(r'(https?(:|%3A)//.+?)(\?|#|$)', alt_href[7:])
+            url = match.group(1) if match.group(2) == ':' else urllib.parse.unquote(match.group(1))
 
         return {
             'ticker': self.ticker,
