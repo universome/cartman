@@ -10,7 +10,7 @@ from requests import Session
 from pyquery import PyQuery
 
 class Tweet(Model):
-    ticker = CharField()
+    ticker = CharField(5)
     id = IntegerField()
     date = TimestampField(utc=True, index=True)
     user_id = IntegerField()
