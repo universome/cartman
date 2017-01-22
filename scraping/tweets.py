@@ -5,26 +5,11 @@ import random
 from datetime import datetime, timedelta, timezone
 from collections import deque
 
-from peewee import *
 from requests import Session
 from pyquery import PyQuery
 
-from base.database import db, BaseModel
-
-class Tweet(BaseModel):
-    oid = IntegerField(primary_key=True)
-    ticker = CharField(5)
-    id = IntegerField()
-    date = TimestampField(utc=True, index=True)
-    user_id = IntegerField()
-    text = TextField()
-    retweet_count = IntegerField()
-    favorite_count = IntegerField()
-
-    class Meta:
-        indexes = [
-            (('id', 'ticker'), True)    # Can be dropped after scraping.
-        ]
+from base.database import db
+from base.schemas import Tweet
 
 class Scraper:
     _USER_AGENTS = [

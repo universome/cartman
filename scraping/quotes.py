@@ -6,25 +6,9 @@ from datetime import datetime
 from itertools import islice
 
 import requests
-from peewee import *
 
-from base.database import db, BaseModel
-
-class Quote(BaseModel):
-    oid = IntegerField(primary_key=True)
-    ticker = CharField(5)
-    date = TimestampField(utc=True)
-    interval = IntegerField()
-    open_price = DecimalField(6, 2)
-    low_price = DecimalField(6, 2)
-    high_price = DecimalField(6, 2)
-    close_price = DecimalField(6, 2)
-    volume = DecimalField(6, 2)
-
-    class Meta:
-        indexes = [
-            (('date', 'interval'), False)
-        ]
+from base.database import db
+from base.schemas import Quote
 
 class Scraper:
     _INTERVAL_IDS = {60: 2, 300: 3, 600: 4, 900: 5, 1800: 6, 3600: 7}

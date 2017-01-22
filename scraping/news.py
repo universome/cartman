@@ -4,26 +4,8 @@ from datetime import datetime
 import urllib
 
 import requests
-from peewee import *
 
-from base.database import db, BaseModel
-
-class News(BaseModel):
-    oid = IntegerField(primary_key=True)
-    ticker = CharField(5)
-    id = IntegerField()
-    date = TimestampField(utc=True, index=True)
-    source = TextField(null=True)
-    title = TextField()
-    description = TextField(null=True)
-    url = TextField(null=True)
-    engagement = IntegerField(null=True)
-    marked = BooleanField()
-
-    class Meta:
-        indexes = [
-            (('id', 'ticker'), True)    # Can be dropped after scraping.
-        ]
+from base.database import db
 
 class Scraper:
     def __init__(self, ticker, continuation=''):
