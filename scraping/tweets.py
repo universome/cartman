@@ -10,6 +10,7 @@ from requests import Session
 from pyquery import PyQuery
 
 class Tweet(Model):
+    oid = IntegerField(primary_key=True)
     ticker = CharField(5)
     id = IntegerField()
     date = TimestampField(utc=True, index=True)
@@ -19,8 +20,9 @@ class Tweet(Model):
     favorite_count = IntegerField()
 
     class Meta:
-        primary_key = CompositeKey('ticker', 'id')
-        without_rowid = True
+        indexes = [
+            (('id', 'ticker'), True)    # Can be dropped after scraping.
+        ]
 
 class Scraper:
     _USER_AGENTS = [
@@ -53,6 +55,7 @@ class Scraper:
                 self.until = self._get_oldest_date()
 
     def scrape(self):
+        return
         self.startup = time.time()
         self.time_mark = time.time()
 

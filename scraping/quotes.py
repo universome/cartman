@@ -9,8 +9,10 @@ import requests
 from peewee import *
 
 class Quote(Model):
+    oid = IntegerField(primary_key=True)
     ticker = CharField(5)
     date = TimestampField(utc=True)
+    interval = IntegerField()
     open_price = DecimalField(6, 2)
     low_price = DecimalField(6, 2)
     high_price = DecimalField(6, 2)
@@ -18,8 +20,9 @@ class Quote(Model):
     volume = DecimalField(6, 2)
 
     class Meta:
-        primary_key = CompositeKey('ticker', 'date')
-        without_rowid = True
+        indexes = [
+            (('date', 'interval'), False)
+        ]
 
 class Scraper:
     _INTERVAL_IDS = {60: 2, 300: 3, 600: 4, 900: 5, 1800: 6, 3600: 7}
@@ -43,7 +46,7 @@ class Scraper:
         for ticker in self._TICKERS:
             for interval in self._INTERVAL_IDS:
                 raw_quotes = self._load_quotes(ticker, interval)
-                quotes = self._extract_quotes(raw_quotes)
+                quotes = self._extract_quotes(raw_quotes, interval)
                 n = 100
 
                 with Using(self.db, [Quote], False):
@@ -72,13 +75,14 @@ class Scraper:
 
         return quotes
 
-    def _extract_quotes(self, quotes):
+    def _extract_quotes(self, quotes, interval):
         for quote in quotes.splitlines()[1:]:
             quote = quote.split(',')
 
             yield {
                 'ticker': quote[0],
                 'date': time.mktime(datetime.strptime(quote[2] + quote[3], '%Y%m%d%H%M%S').timetuple()),
+                'interval': interval,
                 'open_price': float(quote[4]),
                 'high_price': float(quote[5]),
                 'low_price': float(quote[6]),

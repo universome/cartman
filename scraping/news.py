@@ -7,6 +7,7 @@ import requests
 from peewee import *
 
 class News(Model):
+    oid = IntegerField(primary_key=True)
     ticker = CharField(5)
     id = IntegerField()
     date = TimestampField(utc=True, index=True)
@@ -18,8 +19,9 @@ class News(Model):
     marked = BooleanField()
 
     class Meta:
-        primary_key = CompositeKey('ticker', 'id')
-        without_rowid = True
+        indexes = [
+            (('id', 'ticker'), True)    # Can be dropped after scraping.
+        ]
 
 class Scraper:
     def __init__(self, db, ticker, continuation=''):
@@ -32,6 +34,7 @@ class Scraper:
             db.create_tables([News], safe=True)
 
     def scrape(self):
+        return
         with Using(self.db, [News], False):
             while self.continuation is not None:
                 self._step()
