@@ -10,7 +10,9 @@ import requests
 from peewee import *
 from pyquery import PyQuery as pq
 
-class Article(Model):
+from base.database import db, BaseModel
+
+class Article(BaseModel):
     oid = IntegerField(primary_key=True)
     ticker = CharField(5)
     date = TimestampField(utc=True, index=True)
@@ -41,26 +43,22 @@ class Scraper:
         'Microsoft': 'MSFT'
     }
 
-    def __init__(self, db):
-        self.db = db
-
-        with Using(self.db, [Article]):
-            self.db.create_tables([Article], safe=True)
+    def __init__(self):
+        db.create_tables([Article], safe=True)
 
     def scrape(self):
         articles = self._extract_articles()
         n = 50
         count = 0
 
-        with Using(self.db, [Article], False):
-            while True:
-                with self.db.atomic():
-                    chunk = list(islice(articles, n))
-                    count += len(chunk)
-                    logging.info('Saved {} articles'.format(count))
+        while True:
+            with db.atomic():
+                chunk = list(islice(articles, n))
+                count += len(chunk)
+                logging.info('Saved {} articles'.format(count))
 
-                    if len(chunk) != 0: Article.insert_many(chunk).execute()
-                    if len(chunk) < n: break
+                if len(chunk) != 0: Article.insert_many(chunk).execute()
+                if len(chunk) < n: break
 
     def _extract_articles(self):
         count = 0

@@ -6,9 +6,7 @@ import traceback
 import os
 from os import path
 
-from playhouse.sqlite_ext import SqliteExtDatabase
 from dotenv import load_dotenv
-
 load_dotenv(path.join(path.dirname(__file__), '.env'))
 
 from scraping import tweets, quotes, articles, news
@@ -24,18 +22,20 @@ SCRAPERS = {
     'news': news.Scraper
 }
 
-def run_scraper(scraper_name, args):
-    db_path = path.join(path.dirname(__file__), os.environ['RAW_DB'])
-    db = SqliteExtDatabase(db_path)
-
-    db.connect()
-    scraper = SCRAPERS[scraper_name](db, *args)
+def run_scraper(name, args):
+    scraper = SCRAPERS[name](*args)
     scraper.scrape()
-    db.close()
+
+EXTRACTORS = {}
+
+def run_extractor(name, args):
+    extractor = EXTRACTORS[name](*args)
 
 def main():
     if sys.argv[1] == 'scrape':
         run_scraper(sys.argv[2], sys.argv[3:])
+    elif sys.argv[1] == 'extract':
+        run_extractor(sys.argv[2], sys.argv[3:])
 
 try:
     main()

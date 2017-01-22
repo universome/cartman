@@ -9,7 +9,9 @@ from peewee import *
 from requests import Session
 from pyquery import PyQuery
 
-class Tweet(Model):
+from base.database import db, BaseModel
+
+class Tweet(BaseModel):
     oid = IntegerField(primary_key=True)
     ticker = CharField(5)
     id = IntegerField()
@@ -32,8 +34,7 @@ class Scraper:
 
     random.shuffle(_USER_AGENTS)
 
-    def __init__(self, db, ticker, until=None):
-        self.db = db
+    def __init__(self, ticker, until=None):
         self.session = Session()
         self.ticker = ticker
         self.max_position = ''
@@ -46,24 +47,21 @@ class Scraper:
         self.extracted_count = 0
         self.recent_stats = deque()
 
-        with Using(db, [Tweet]):
-            db.create_tables([Tweet], safe=True)
+        db.create_tables([Tweet], safe=True)
 
-            if until:
-                self.until = datetime.strptime(until, '%Y-%m-%d')
-            else:
-                self.until = self._get_oldest_date()
+        if until:
+            self.until = datetime.strptime(until, '%Y-%m-%d')
+        else:
+            self.until = self._get_oldest_date()
 
     def scrape(self):
-        return
         self.startup = time.time()
         self.time_mark = time.time()
 
         logging.info('Starting at %s', self.until)
 
-        with Using(self.db, [Tweet], False):
-            while self._step():
-                pass
+        while self._step():
+            pass
 
     def _step(self):
         max_attempts = max(len(self._USER_AGENTS), 4)
@@ -118,7 +116,7 @@ class Scraper:
         self.max_position = response['min_position']
 
         if tweets:
-            with self.db.atomic():
+            with db.atomic():
                 Tweet.insert_many(tweets).on_conflict('IGNORE').execute()
 
         return True

@@ -6,7 +6,9 @@ import urllib
 import requests
 from peewee import *
 
-class News(Model):
+from base.database import db, BaseModel
+
+class News(BaseModel):
     oid = IntegerField(primary_key=True)
     ticker = CharField(5)
     id = IntegerField()
@@ -24,20 +26,16 @@ class News(Model):
         ]
 
 class Scraper:
-    def __init__(self, db, ticker, continuation=''):
-        self.db = db
+    def __init__(self, ticker, continuation=''):
         self.ticker = ticker
         self.continuation = continuation
         self.extracted = 0
 
-        with Using(db, [News]):
-            db.create_tables([News], safe=True)
+        db.create_tables([News], safe=True)
 
     def scrape(self):
-        return
-        with Using(self.db, [News], False):
-            while self.continuation is not None:
-                self._step()
+        while self.continuation is not None:
+            self._step()
 
     def _step(self):
         response = self._fetch()
@@ -54,7 +52,7 @@ class Scraper:
             self.extracted, len(news), oldest, self.continuation
         ))
 
-        with self.db.atomic():
+        with db.atomic():
             for i in range(0, len(news), 100):
                 News.insert_many(news[i:i+100]).on_conflict('IGNORE').execute()
 

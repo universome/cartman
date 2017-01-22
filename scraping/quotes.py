@@ -8,7 +8,9 @@ from itertools import islice
 import requests
 from peewee import *
 
-class Quote(Model):
+from base.database import db, BaseModel
+
+class Quote(BaseModel):
     oid = IntegerField(primary_key=True)
     ticker = CharField(5)
     date = TimestampField(utc=True)
@@ -36,11 +38,8 @@ class Scraper:
         'WFC', 'WMT', 'XOM', 'YHOO', 'YND'
     ]
 
-    def __init__(self, db):
-        self.db = db
-
-        with Using(self.db, [Quote]):
-            self.db.create_tables([Quote], safe=True)
+    def __init__(self):
+        db.create_tables([Quote], safe=True)
 
     def scrape(self):
         for ticker in self._TICKERS:
@@ -49,15 +48,14 @@ class Scraper:
                 quotes = self._extract_quotes(raw_quotes, interval)
                 n = 100
 
-                with Using(self.db, [Quote], False):
-                    with self.db.atomic():
-                        while True:
-                            chunk = list(islice(quotes, n))
+                with db.atomic():
+                    while True:
+                        chunk = list(islice(quotes, n))
 
-                            if chunk:
-                                Quote.insert_many(chunk).on_conflict('IGNORE').execute()
+                        if chunk:
+                            Quote.insert_many(chunk).on_conflict('IGNORE').execute()
 
-                            if len(chunk) < n: break
+                        if len(chunk) < n: break
 
     def _load_quotes(self, ticker, interval):
         interval_id = self._INTERVAL_IDS[interval]
