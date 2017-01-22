@@ -22,11 +22,11 @@ class Quote(BaseModel):
     ticker = CharField(5)
     date = TimestampField(utc=True)
     interval = IntegerField()
-    open_price = DecimalField(6, 2)
-    low_price = DecimalField(6, 2)
-    high_price = DecimalField(6, 2)
-    close_price = DecimalField(6, 2)
-    volume = DecimalField(6, 2)
+    open_price = FloatField()
+    low_price = FloatField()
+    high_price = FloatField()
+    close_price = FloatField()
+    volume = FloatField()
 
     class Meta:
         indexes = [
