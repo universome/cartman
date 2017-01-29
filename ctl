@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv(path.join(path.dirname(__file__), '.env'))
 
 from scraping import tweets, quotes, articles, news
+from extraction import polarity
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(name)-10s %(levelname)-8s %(message)s',
@@ -26,10 +27,13 @@ def run_scraper(name, args):
     scraper = SCRAPERS[name](*args)
     scraper.scrape()
 
-EXTRACTORS = {}
+EXTRACTORS = {
+    'polarity': polarity.Extractor
+}
 
 def run_extractor(name, args):
     extractor = EXTRACTORS[name](*args)
+    extractor.extract()
 
 def main():
     if sys.argv[1] == 'scrape':

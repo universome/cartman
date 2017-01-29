@@ -64,3 +64,11 @@ class Article(BaseModel):
     first_paragraph = TextField(null=True)
     keywords = TextField(null=True)
     has_multimedia = BooleanField()
+
+class TweetPolarity(BaseModel):
+    tweet = ForeignKeyField(Tweet, primary_key=True)
+    polarity = IntegerField()
+
+class NewsPolarity(BaseModel):
+    news = ForeignKeyField(News, primary_key=True)
+    polarity = IntegerField()
