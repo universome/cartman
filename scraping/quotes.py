@@ -3,7 +3,7 @@ import json
 import time
 import logging
 from datetime import datetime
-from itertools import islice
+from itertools import product, islice
 from collections import OrderedDict
 import time
 
@@ -29,32 +29,60 @@ class Scraper:
     ])
 
     def __init__(self):
+        self.extracted = 0
         db.create_tables([Quote], safe=True)
 
     def scrape(self):
-        for ticker in self._TICKERS.keys():
-            for interval in self._INTERVAL_IDS:
-                response = self._load_quotes(ticker, interval)
+        for ticker, interval in product(self._TICKERS.keys(), self._INTERVAL_IDS):
+            if not self._scrape_step(ticker, interval):
+                break
 
-                if 'Дождитесь' in response:
-                    time.sleep(3)
-                    response = self._load_quotes(ticker, interval)
+    def _scrape_step(self, ticker, interval):
+        SUSPICIOUS_LEN = 1024
+        ATTEMPT_COUNT = 3
+        SLEEP_TIME = 3
 
-                if 'слишком большой' in response:
-                    print('Skipping {interval} for {ticker}'.format(interval, ticker))
-                    continue # Finam does not have quotes for this period
+        for i in range(ATTEMPT_COUNT):
+            response = self._load_quotes(ticker, interval)
 
-                quotes = self._extract_quotes(response, interval)
-                n = 100
+            if len(response) >= SUSPICIOUS_LEN:
+                break
 
-                with db.atomic():
-                    while True:
-                        chunk = list(islice(quotes, n))
+            if 'Дождитесь' in response:
+                logging.info('Sleeping for {} seconds...'.format(SLEEP_TIME))
+                time.sleep(SLEEP_TIME)
+            elif 'слишком большой' in response:
+                loging.info('Skipping {interval} for {ticker}...'.format(interval, ticker))
+                return True
+            else:
+                logging.error('Unexpected response: {}'.format(response))
+                return False
+        else:
+            logging.error('Exhausted attempts!')
+            return False
 
-                        if chunk:
-                            Quote.insert_many(chunk).on_conflict('IGNORE').execute()
+        quotes = self._extract_quotes(response, interval)
 
-                        if len(chunk) < n: break
+        n = 100
+        extracted = 0
+
+        with db.atomic():
+            while True:
+                chunk = list(islice(quotes, n))
+
+                if chunk:
+                    extracted += len(chunk)
+                    Quote.insert_many(chunk).on_conflict('IGNORE').execute()
+
+                if len(chunk) < n: break
+
+        if extracted:
+            self.extracted += extracted
+            logging.info('Extracted {} (+{}) quotes'.format(self.extracted, extracted))
+            return True
+        else:
+            logging.error('No quotes! Response: {}'.format(response))
+            return False
 
     def _load_quotes(self, ticker, interval):
         interval_id = self._INTERVAL_IDS[interval]
@@ -69,7 +97,8 @@ class Scraper:
             'day': 1
         }
 
-        logging.info('Getting {ticker} ({interval_id}) since {year}-{month:02}-{day:02}'.format(**params))
+        MSG = 'Getting {ticker} ({interval_id}: {interval}s) since {year}-{month:02}-{day:02}...'
+        logging.info(MSG.format(interval=interval, **params))
         response = requests.get(self._BASE_URL.format(**params))
 
         return response.text
